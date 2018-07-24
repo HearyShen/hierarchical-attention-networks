@@ -22,7 +22,7 @@ def bidirectional_rnn(cell_fw, cell_bw, inputs_embedded, input_lengths,
                                             dtype=tf.float32,
                                             swap_memory=True,
                                             scope=scope))
-        outputs = tf.concat((fw_outputs, bw_outputs), 2)
+        outputs = tf.concat((fw_outputs, bw_outputs), 2)    # foreach i: outputs[i] = [fw_outputs[i], bw_outputs[i]]
 
         def concatenate_state(fw_state, bw_state):
             if isinstance(fw_state, LSTMStateTuple):
@@ -37,8 +37,8 @@ def bidirectional_rnn(cell_fw, cell_bw, inputs_embedded, input_lengths,
                                   name='bidirectional_concat')
                 return state
             elif (isinstance(fw_state, tuple) and
-                    isinstance(bw_state, tuple) and
-                    len(fw_state) == len(bw_state)):
+                  isinstance(bw_state, tuple) and
+                  len(fw_state) == len(bw_state)):
                 # multilayer
                 state = tuple(concatenate_state(fw, bw)
                               for fw, bw in zip(fw_state, bw_state))
@@ -48,12 +48,11 @@ def bidirectional_rnn(cell_fw, cell_bw, inputs_embedded, input_lengths,
                 raise ValueError(
                     'unknown state type: {}'.format((fw_state, bw_state)))
 
-
         state = concatenate_state(fw_state, bw_state)
         return outputs, state
 
 
-def task_specific_attention(inputs, output_size,
+def task_specific_attention(inputs,
                             initializer=layers.xavier_initializer(),
                             activation_fn=tf.tanh, scope=None):
     """
@@ -72,6 +71,7 @@ def task_specific_attention(inputs, output_size,
     """
     assert len(inputs.get_shape()) == 3 and inputs.get_shape()[-1].value is not None
 
+    output_size = inputs.get_shape()[-1].value
     with tf.variable_scope(scope or 'attention') as scope:
         attention_context_vector = tf.get_variable(name='attention_context_vector',
                                                    shape=[output_size],
@@ -81,10 +81,13 @@ def task_specific_attention(inputs, output_size,
                                                   activation_fn=activation_fn,
                                                   scope=scope)
 
-        vector_attn = tf.reduce_sum(tf.multiply(input_projection, attention_context_vector), axis=2, keep_dims=True)
-        attention_weights = tf.nn.softmax(vector_attn, dim=1)
-        weighted_projection = tf.multiply(input_projection, attention_weights)
+        #vector_attn = tf.reduce_sum(tf.multiply(input_projection, attention_context_vector), axis=2, keepdims=True)
+        vector_attn = tf.reduce_sum(tf.multiply(input_projection, attention_context_vector), axis=2, keep_dims=True)  # deprecated 'keep_dims'
+        # attention_weights = tf.nn.softmax(vector_attn, axis=1)
+        attention_weights = tf.nn.softmax(vector_attn, dim=1)  # deprecated 'dim'
+        weighted_projection = tf.multiply(inputs, attention_weights)
 
         outputs = tf.reduce_sum(weighted_projection, axis=1)
+        # units_attentions = tf.reduce_sum(attention_weights, axis=-1)
 
-        return outputs
+        return outputs, attention_weights

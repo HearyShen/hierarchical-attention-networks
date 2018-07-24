@@ -1,7 +1,7 @@
 import os
 import pickle
 
-train_dir = os.path.join(os.path.curdir, 'yelp')
+train_dir = os.path.join(os.path.curdir, 'yahoo')
 data_dir = os.path.join(train_dir, 'data')
 
 for dir in [train_dir, data_dir]:
@@ -16,12 +16,25 @@ vocab_fn = os.path.join(data_dir, 'vocab.pickle')
 reserved_tokens = 5
 unknown_id = 2
 
-vocab_size = 50001
+# vocab_size = 150001
+vocab_minFreq = 6
 
 def get_vocab_size():
-    return vocab_size
+    vocab = read_vocab()
+    return len(vocab) + unknown_id + 1
 
-
+mainCategories = {'Society & Culture':0,
+                  'Science & Mathematics':1,
+                  'Health':2,
+                  'Education & Reference':3,
+                  'Computers & Internet':4,
+                  'Sports':5,
+                  'Business & Finance':6,
+                  'Entertainment & Music':7,
+                  'Family & Relationships':8,
+                  'Politics & Government':9
+                  }
+assert len(mainCategories) == 10
 
 
 def _read_dataset(fn, review_max_sentences=32, sentence_max_length=32, epochs=1):
@@ -40,8 +53,8 @@ def _read_dataset(fn, review_max_sentences=32, sentence_max_length=32, epochs=1)
                     x = x[:review_max_sentences]
                     x = [sent[:sentence_max_length] for sent in x]
 
-                    y -= 1
-                    assert y >= 0 and y <= 4
+                    # y -= 1
+                    assert y >= 0 and y <= 9
                     yield x, y
             except EOFError:
                 continue
@@ -64,4 +77,4 @@ def read_vocab():
 
 
 def read_labels():
-    return {i+1: i for i in range(5)}
+    return mainCategories
